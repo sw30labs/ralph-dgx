@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/scripts/lib/common.sh"
+
+# ---------------------------------------------------------------------------
+# Defaults
+# ---------------------------------------------------------------------------
+PROVIDER="${DEEPAGENTS_MODEL_PROVIDER:-vllm}"
+PROVIDER_EXPLICIT="false"
+COMMAND=()
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <command> [options] [-- dcode-args...]
+
+Commands:
+  install                     Install (download, patch, install DeepAgents)
+  update                      Run the Ralph-driven safe update workflow
+  test <target>               Smoke-test a provider
+                              Targets: vllm, openai
+  run                         Launch dcode
+  doctor                      Check this machine (Python, GPU, vLLM)
+
+Options:
+  --provider <vllm|openai>
+                              Model provider (default: from DEEPAGENTS_MODEL_PROVIDER or vllm)
+  --skip-install              (install) Skip installing patched packages
+  -h, --help                  Show this help
+
+Environment:
+  DEEPAGENTS_MODEL_PROVIDER   vllm or openai (default: vllm)
+  DEEPAGENTS_ENV_FILE         Path to .env (default: <repo>/.env)
+  PIP_PYTHON_BIN / RALPHDGX_PYTHON
+                              Python used for install/run (prefers python3.12)
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+SUBCOMMAND=""
+SUBCOMMAND_ARGS=()
+
+parse_args() {
+    while (($#)); do
+        case "$1" in
+            --provider)
+                PROVIDER="$2"; PROVIDER_EXPLICIT="true"; shift 2 ;;
+            --skip-install)
+                SKIP_INSTALL="true"; shift ;;
+            -h|--help)
+                usage; exit 0 ;;
+            --)
+                shift; COMMAND+=("$@"); break ;;
+            -*)
+                echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+            *)
+                if [[ -z "${SUBCOMMAND}" ]]; then
+                    SUBCOMMAND="$1"; shift
+                else
+                    SUBCOMMAND_ARGS+=("$1"); shift
+                fi
+                ;;
+        esac
+    done
+}
+
+parse_args "$@"
+
+if [[ -z "${SUBCOMMAND}" ]]; then
+    usage
+    exit 1
+fi
+
+cd "${SCRIPT_DIR}"
+resolve_provider "${PROVIDER}"
+if [[ "${PROVIDER_EXPLICIT}" == "true" ]]; then
+    export DEEPAGENTS_MODEL_PROVIDER_CLI="${PROVIDER}"
+fi
+
+# ---------------------------------------------------------------------------
+# Subcommand: install
+# ---------------------------------------------------------------------------
+cmd_install() {
+    local install_args=()
+    [[ "${SKIP_INSTALL:-false}" == "true" ]] && install_args+=(--skip-install)
+
+    "${SCRIPT_DIR}/scripts/ralph_install.sh" \
+        "${install_args[@]+"${install_args[@]}"}" \
+        "${COMMAND[@]+"${COMMAND[@]}"}"
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: update
+# ---------------------------------------------------------------------------
+cmd_update() {
+    exec "${SCRIPT_DIR}/run-ralph-update-langgraph.sh" \
+        "${COMMAND[@]+"${COMMAND[@]}"}"
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: test
+# ---------------------------------------------------------------------------
+cmd_test() {
+    local target="${1:-}"
+    if [[ -z "${target}" ]]; then
+        echo "Usage: ralphdgx test <vllm|openai>" >&2
+        exit 1
+    fi
+
+    resolve_python
+    case "${target}" in
+        vllm)
+            export DEEPAGENTS_MODEL_PROVIDER_CLI="vllm"
+            prepare_test
+            "${PIP_PYTHON_BIN}" "${SCRIPT_DIR}/scripts/test-vllm.py"
+            ;;
+        openai)
+            export DEEPAGENTS_MODEL_PROVIDER_CLI="openai"
+            prepare_test
+            "${PIP_PYTHON_BIN}" "${SCRIPT_DIR}/scripts/test-openai.py"
+            ;;
+        *)
+            echo "Unknown test target: ${target}. Expected vllm or openai." >&2
+            exit 1
+            ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: doctor
+# ---------------------------------------------------------------------------
+cmd_doctor() {
+    echo "== ralphdgx doctor =="
+    echo "host: $(uname -srm)"
+    echo "cwd:  ${SCRIPT_DIR}"
+    resolve_python
+    echo "python: $("${PIP_PYTHON_BIN}" -c 'import sys; print(sys.executable, sys.version.split()[0])')"
+    if command -v nvidia-smi >/dev/null 2>&1; then
+        nvidia-smi -L 2>/dev/null || true
+        nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv,noheader 2>/dev/null || true
+    else
+        echo "nvidia-smi: not found"
+    fi
+    if command -v rg >/dev/null 2>&1; then
+        echo "ripgrep: $(rg --version | head -1)"
+    else
+        echo "ripgrep: MISSING (sudo apt-get install -y ripgrep)"
+    fi
+
+    local base model
+    if [[ -f "${SCRIPT_DIR}/.env" ]]; then
+        # shellcheck disable=SC1091
+        set -a; source "${SCRIPT_DIR}/.env"; set +a
+    fi
+    base="${VLLM_BASE_URL:-http://127.0.0.1:8000/v1}"
+    model="${VLLM_MODEL:-Qwen/Qwen3-Coder-Next-FP8}"
+    echo "vllm target: ${model} @ ${base}"
+    if curl -fsS -m 3 "${base}/models" >/tmp/ralphdgx-models.json 2>/dev/null; then
+        echo "vllm /models: OK"
+        "${PIP_PYTHON_BIN}" - <<'PY'
+import json
+from pathlib import Path
+data = json.loads(Path("/tmp/ralphdgx-models.json").read_text())
+ids = [m.get("id") for m in data.get("data", []) if m.get("id")]
+print("  catalog:", ", ".join(ids) or "<empty>")
+PY
+    else
+        echo "vllm /models: UNREACHABLE (start with ~/Desktop/start-vllm.sh)"
+    fi
+
+    if "${PIP_PYTHON_BIN}" -c 'import deepagents_code' 2>/dev/null; then
+        echo "deepagents_code: installed ($("${PIP_PYTHON_BIN}" -m deepagents_code --version 2>/dev/null || echo ok))"
+    else
+        echo "deepagents_code: NOT installed (run: ./ralphdgx install)"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Subcommand: run
+# ---------------------------------------------------------------------------
+cmd_run() {
+    prepare_run
+    run_dcode "${COMMAND[@]+"${COMMAND[@]}"}"
+}
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+case "${SUBCOMMAND}" in
+    install)              cmd_install ;;
+    update)               cmd_update ;;
+    test)                 cmd_test "${SUBCOMMAND_ARGS[@]+"${SUBCOMMAND_ARGS[@]}"}" ;;
+    doctor)               cmd_doctor ;;
+    run)                  cmd_run ;;
+    *)
+        echo "Unknown command: ${SUBCOMMAND}" >&2
+        usage >&2
+        exit 1
+        ;;
+esac

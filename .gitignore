@@ -1,0 +1,39 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.bench-venv/
+.venv/
+venv/
+.env
+backups/
+deepagents-sdists/
+deepagents-main/
+logs/
+dcode_tenacity.sqlite
+/tmp-ralphdgx-models.json
+Miniconda3-latest-Linux-x86_64.sh
+Screenshot From *.png
+
+# Local benchmark/experiment artifacts.
+API_REFERENCE.md
+RUN_LOG.md
+RECOMMENDATION.md
+results.csv
+docs/codex-prompt-selfcontained.md
+harness/
+extract_code.py
+generate_expr.py
+hello_test.py
+test_ornith.py
+test_qwen_model.py
+test_remote_ornith.py
+test_smoke.py
+test_smoke.sh
+tests/test_expr_eval.py
+tests/test_git_log_cli.py
+
+# macOS Finder metadata.
+.DS_Store
+
+# Unrelated local file predating the hy3 branch; keep it out of commits.
+game.html
