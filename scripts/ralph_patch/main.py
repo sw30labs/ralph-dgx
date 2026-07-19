@@ -38,7 +38,6 @@ def main() -> None:
     patch_server.run(
         code_pkg_dir / "_server_config.py",
         code_pkg_dir / "server_graph.py",
-        code_pkg_dir / "server_manager.py",
     )
     patch_pyproject.run(
         code_project_dir / "pyproject.toml",

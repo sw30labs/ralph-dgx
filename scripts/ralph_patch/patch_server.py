@@ -9,7 +9,7 @@ from ._shared import replace_once
 def run(
     server_config: Path,
     server_graph: Path,
-    server_manager: Path,
+    server_manager: Path | None = None,
 ) -> None:
     # _server_config.py: add goal_mode, goal_budget, goal_judge_model fields
     replace_once(
@@ -105,70 +105,7 @@ def run(
 ''',
     )
 
-    # server_manager.py: thread goal params through
-    replace_once(
-        server_manager,
-        '''    trust_project_mcp: bool | None = None,
-    interactive: bool = True,
-    host: str = "127.0.0.1",
-''',
-        '''    trust_project_mcp: bool | None = None,
-    goal_mode: bool = False,
-    goal_budget: int = 20,
-    goal_judge_model: str | None = None,
-    interactive: bool = True,
-    host: str = "127.0.0.1",
-''',
-    )
-
-    replace_once(
-        server_manager,
-        '''        trust_project_mcp=trust_project_mcp,
-        interactive=interactive,
-    )
-''',
-        '''        trust_project_mcp=trust_project_mcp,
-        goal_mode=goal_mode,
-        goal_budget=goal_budget,
-        goal_judge_model=goal_judge_model,
-        interactive=interactive,
-    )
-''',
-    )
-
-    replace_once(
-        server_manager,
-        '''    trust_project_mcp: bool | None = None,
-    interactive: bool = True,
-    host: str = "127.0.0.1",
-    port: int = _EPHEMERAL_PORT,
-) -> AsyncIterator[tuple[RemoteAgent, ServerProcess]]:
-''',
-        '''    trust_project_mcp: bool | None = None,
-    goal_mode: bool = False,
-    goal_budget: int = 20,
-    goal_judge_model: str | None = None,
-    interactive: bool = True,
-    host: str = "127.0.0.1",
-    port: int = _EPHEMERAL_PORT,
-) -> AsyncIterator[tuple[RemoteAgent, ServerProcess]]:
-''',
-    )
-
-    replace_once(
-        server_manager,
-        '''            trust_project_mcp=trust_project_mcp,
-            interactive=interactive,
-            host=host,
-''',
-        '''            trust_project_mcp=trust_project_mcp,
-            goal_mode=goal_mode,
-            goal_budget=goal_budget,
-            goal_judge_model=goal_judge_model,
-            interactive=interactive,
-            host=host,
-''',
-    )
+    
 
     # server_graph.py: wrap with goal graph when goal_mode is set. In 0.1.27 the
     # agent is built in a nested sync helper and returned via asyncio.to_thread;

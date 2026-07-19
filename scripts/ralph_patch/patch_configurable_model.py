@@ -19,8 +19,8 @@ def run(configurable_model_py: Path) -> None:
     # _apply_overrides, so anchor directly on the _apply_overrides def header.
     replace_once(
         configurable_model_py,
-        '''def _apply_overrides(request: ModelRequest) -> ModelRequest:
-    """Apply model/param overrides from `CLIContext` on the runtime.
+        '''def _apply_overrides(request: ModelRequest) -> _ResolvedModelRequest:
+    """Apply model/param overrides and return checkpoint persistence metadata.
 ''',
         '''def _content_chars(content: Any) -> int:
     if content is None:
@@ -88,18 +88,17 @@ def _log_model_request(request: ModelRequest, *, phase: str) -> None:
         logger.debug("Failed to write model request summary", exc_info=True)
 
 
-def _apply_overrides(request: ModelRequest) -> ModelRequest:
-    """Apply model/param overrides from `CLIContext` on the runtime.
+def _apply_overrides(request: ModelRequest) -> _ResolvedModelRequest:
+    """Apply model/param overrides and return checkpoint persistence metadata.
 ''',
     )
 
     # Hook logging into sync handler
     replace_once(
         configurable_model_py,
-        "        return handler(_apply_overrides(request))\n",
-        '''        request = _apply_overrides(request)
-        _log_model_request(request, phase="sync")
-        return handler(request)
+        "        response = handler(resolved.request)\n",
+        '''        _log_model_request(resolved.request, phase="sync")
+        response = handler(resolved.request)
 ''',
     )
 
@@ -107,9 +106,8 @@ def _apply_overrides(request: ModelRequest) -> ModelRequest:
     # through the awaitable _apply_overrides_async variant.
     replace_once(
         configurable_model_py,
-        "        return await handler(await _apply_overrides_async(request))\n",
-        '''        request = await _apply_overrides_async(request)
-        _log_model_request(request, phase="async")
-        return await handler(request)
+        "        response = await handler(resolved.request)\n",
+        '''        _log_model_request(resolved.request, phase="async")
+        response = await handler(resolved.request)
 ''',
     )

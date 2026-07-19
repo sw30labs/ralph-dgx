@@ -110,18 +110,19 @@ def _register_no_sync_subagents_profile(model: str | BaseChatModel) -> None:
         agent_py,
         '''    agent_middleware: list[AgentMiddleware[Any, Any]] = [
         ConfigurableModelMiddleware(),
+        # Experimental: drop the SDK's TodoListMiddleware / write_todos tool.
+        # No-op unless DEEPAGENTS_CODE_EXPERIMENTAL is truthy.
+        *_todo_list_middleware_override(),
     ]
-
-    # Resume state: declares the `_context_tokens` and `_model_spec` channels
 ''',
         '''    agent_middleware: list[AgentMiddleware[Any, Any]] = [
         ConfigurableModelMiddleware(),
+        # Experimental: drop the SDK's TodoListMiddleware / write_todos tool.
+        # No-op unless DEEPAGENTS_CODE_EXPERIMENTAL is truthy.
+        *_todo_list_middleware_override(),
     ]
-
     if sandbox is None and enable_shell:
         agent_middleware.append(RalphRuntimeInstallGuardMiddleware())
-
-    # Resume state: declares the `_context_tokens` and `_model_spec` channels
 ''',
     )
 
@@ -149,6 +150,13 @@ def _register_no_sync_subagents_profile(model: str | BaseChatModel) -> None:
         )
         if subagent_middleware:
             subagent["middleware"] = subagent_middleware
+        if resolved_interrupt_on is not None:
+            # The async-aware stock-compatible middleware above owns approval
+            # routing. A declarative subagent with no `interrupt_on` inherits
+            # the parent's top-level map (`spec.get("interrupt_on", ...)` in
+            # deepagents graph assembly), which would wrap its tools in a second
+            # synchronous stock HITL. An explicit empty (falsy) map opts out.
+            subagent["interrupt_on"] = {}
         custom_subagents.append(subagent)
 
     from deepagents.middleware.subagents import (
@@ -166,6 +174,8 @@ def _register_no_sync_subagents_profile(model: str | BaseChatModel) -> None:
             "system_prompt": GENERAL_PURPOSE_SUBAGENT["system_prompt"],
             "middleware": _subagent_cli_middleware(has_explicit_model=False),
         }
+        if resolved_interrupt_on is not None:
+            general_purpose_subagent["interrupt_on"] = {}
         custom_subagents.append(general_purpose_subagent)
 ''',
         '''    disable_sync_subagents = _truthy_env(os.environ.get(DISABLE_SYNC_SUBAGENTS_ENV))
@@ -196,6 +206,13 @@ def _register_no_sync_subagents_profile(model: str | BaseChatModel) -> None:
             )
             if subagent_middleware:
                 subagent["middleware"] = subagent_middleware
+            if resolved_interrupt_on is not None:
+                # The async-aware stock-compatible middleware above owns approval
+                # routing. A declarative subagent with no `interrupt_on` inherits
+                # the parent's top-level map (`spec.get("interrupt_on", ...)` in
+                # deepagents graph assembly), which would wrap its tools in a second
+                # synchronous stock HITL. An explicit empty (falsy) map opts out.
+                subagent["interrupt_on"] = {}
             custom_subagents.append(subagent)
 
         from deepagents.middleware.subagents import (
@@ -213,6 +230,8 @@ def _register_no_sync_subagents_profile(model: str | BaseChatModel) -> None:
                 "system_prompt": GENERAL_PURPOSE_SUBAGENT["system_prompt"],
                 "middleware": _subagent_cli_middleware(has_explicit_model=False),
             }
+            if resolved_interrupt_on is not None:
+                general_purpose_subagent["interrupt_on"] = {}
             custom_subagents.append(general_purpose_subagent)
 ''',
     )

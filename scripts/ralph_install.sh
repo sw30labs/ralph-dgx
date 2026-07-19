@@ -77,9 +77,9 @@ echo "Downloading DeepAgents source distributions using configured pip index..."
 rm -rf "${SDIST_DIR}" "${REPO_DIR}"
 mkdir -p "${SDIST_DIR}" "${REPO_DIR}/libs"
 "${PIP_BIN[@]}" download --no-binary :all: --no-deps --dest "${SDIST_DIR}" \
-    deepagents==0.7.0a2 \
-    deepagents-acp==0.0.8 \
-    deepagents-code==0.1.27
+    deepagents==0.7.0a7 \
+    deepagents-acp==0.0.9 \
+    deepagents-code==0.1.43
 
 echo "Extracting source distributions..."
 SDIST_DIR="${SDIST_DIR}" REPO_DIR="${REPO_DIR}" "${PIP_PYTHON_BIN}" "${EXTRACT_SCRIPT}"
