@@ -36,16 +36,15 @@ require_env_vars() {
 
 # Single source of the unsupported-provider error.
 unsupported_provider() {
-    echo "Unsupported DEEPAGENTS_MODEL_PROVIDER=${DEEPAGENTS_MODEL_PROVIDER}. Expected vllm, omlx, or openai." >&2
+    echo "Unsupported DEEPAGENTS_MODEL_PROVIDER=${DEEPAGENTS_MODEL_PROVIDER}. Expected vllm or openai." >&2
     exit 1
 }
 
-# Normalize provider aliases. On this DGX fork, `omlx` is accepted as an alias
-# for the local OpenAI-compatible endpoint path (`vllm`) so shared Ralph upgrade
-# prompts that still say `omlx` keep working.
+# Canonicalize known providers. This DGX fork only supports local vLLM and
+# cloud/OpenAI-compatible endpoints — no Mac OMLX path.
 normalize_provider() {
     case "${1:-vllm}" in
-        vllm|omlx) printf 'vllm\n' ;;
+        vllm) printf 'vllm\n' ;;
         openai) printf 'openai\n' ;;
         *) printf '%s\n' "${1}" ;;
     esac
@@ -231,11 +230,7 @@ resolve_provider() {
         DEEPAGENTS_MODEL_PROVIDER="${requested}"
     fi
     case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
-        vllm|omlx)
-            # Keep the caller's alias for CLI/tests (`omlx`), but route defaults
-            # through the local OpenAI-compatible path below.
-            ;;
-        openai) ;;
+        vllm|openai) ;;
         *) unsupported_provider ;;
     esac
     export DEEPAGENTS_MODEL_PROVIDER

@@ -12,14 +12,13 @@ ARGS=()
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--vllm|--omlx] [--openai] [--no-run] [--skip-install] [--] [dcode args...]
+Usage: $(basename "$0") [--vllm] [--openai] [--no-run] [--skip-install] [--] [dcode args...]
 
 Installs DeepAgents into the active Python (prefers python3.12), smoke-tests
 the chosen provider, and optionally launches ./ralphdgx run.
 
 Environment:
-  DEEPAGENTS_MODEL_PROVIDER   vllm, omlx, or openai (default: vllm)
-                              `omlx` is accepted as an alias for local vLLM
+  DEEPAGENTS_MODEL_PROVIDER   vllm or openai (default: vllm)
   RALPH_SKIP_INSTALL          true to skip installing patched packages
   RALPH_SKIP_RUN              true to skip launching the runner
   PIP_PYTHON_BIN / RALPHDGX_PYTHON
@@ -29,8 +28,7 @@ EOF
 
 while (($#)); do
     case "$1" in
-        --vllm|--omlx)
-            # Shared Ralph upgrade prompts still pass --omlx; map to local vLLM.
+        --vllm)
             MODEL_PROVIDER="vllm"
             shift
             ;;

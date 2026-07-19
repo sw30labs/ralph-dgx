@@ -92,10 +92,6 @@ def main() -> None:
     config_path = Path(os.environ["CONFIG_PATH"])
     script_path = os.environ["SCRIPT_PATH"]
     provider = os.environ.get("DEEPAGENTS_MODEL_PROVIDER", "vllm").strip().lower()
-    # Shared Ralph upgrade prompts still say `omlx`; on this DGX fork that is
-    # the local OpenAI-compatible vLLM endpoint.
-    if provider == "omlx":
-        provider = "vllm"
 
     config_dir.mkdir(parents=True, exist_ok=True)
     if provider == "vllm":
@@ -104,7 +100,7 @@ def main() -> None:
         _write_openai_config(config_path, script_path)
     else:
         raise SystemExit(
-            f"Unsupported DEEPAGENTS_MODEL_PROVIDER={provider!r}. Expected vllm, omlx, or openai."
+            f"Unsupported DEEPAGENTS_MODEL_PROVIDER={provider!r}. Expected vllm or openai."
         )
 
 
