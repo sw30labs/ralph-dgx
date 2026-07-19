@@ -114,10 +114,13 @@ if [[ "${SKIP_INSTALL_PACKAGES}" != "true" ]]; then
         python-dotenv \
         truststore
 
-    if [[ "${PROVIDER}" == "vllm" || "${PROVIDER}" == "openai" ]]; then
-        # Both providers are reached through dcode's `openai` provider.
-        "${PIP_BIN[@]}" install --upgrade --upgrade-strategy eager ${PIP_CONSTRAINT_ARGS[@]+"${PIP_CONSTRAINT_ARGS[@]}"} langchain-openai
-    fi
+    case "${PROVIDER}" in
+        vllm|omlx|openai)
+            # Local vLLM/omlx and cloud openai are all reached through dcode's
+            # `openai` provider / langchain-openai.
+            "${PIP_BIN[@]}" install --upgrade --upgrade-strategy eager ${PIP_CONSTRAINT_ARGS[@]+"${PIP_CONSTRAINT_ARGS[@]}"} langchain-openai
+            ;;
+    esac
 
     for optional_package in fastapi prometheus-fastapi-instrumentator; do
         if "${PIP_BIN[@]}" show "${optional_package}" >/dev/null 2>&1; then

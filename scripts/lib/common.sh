@@ -36,12 +36,23 @@ require_env_vars() {
 
 # Single source of the unsupported-provider error.
 unsupported_provider() {
-    echo "Unsupported DEEPAGENTS_MODEL_PROVIDER=${DEEPAGENTS_MODEL_PROVIDER}. Expected vllm or openai." >&2
+    echo "Unsupported DEEPAGENTS_MODEL_PROVIDER=${DEEPAGENTS_MODEL_PROVIDER}. Expected vllm, omlx, or openai." >&2
     exit 1
 }
 
+# Normalize provider aliases. On this DGX fork, `omlx` is accepted as an alias
+# for the local OpenAI-compatible endpoint path (`vllm`) so shared Ralph upgrade
+# prompts that still say `omlx` keep working.
+normalize_provider() {
+    case "${1:-vllm}" in
+        vllm|omlx) printf 'vllm\n' ;;
+        openai) printf 'openai\n' ;;
+        *) printf '%s\n' "${1}" ;;
+    esac
+}
+
 require_model_provider_env() {
-    case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
+    case "$(normalize_provider "${DEEPAGENTS_MODEL_PROVIDER:-vllm}")" in
         vllm)
             require_env_vars VLLM_MODEL VLLM_BASE_URL
             ;;
@@ -53,7 +64,7 @@ require_model_provider_env() {
 }
 
 model_spec() {
-    case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
+    case "$(normalize_provider "${DEEPAGENTS_MODEL_PROVIDER:-vllm}")" in
         vllm)
             # Local vLLM (OpenAI-compatible) reached through dcode's openai provider.
             printf 'openai:%s\n' "${VLLM_MODEL}"
@@ -69,7 +80,7 @@ model_params_spec() {
     # Extra --model-params JSON for providers that need it (empty = none).
     # --model-params outranks both the deepagents provider profile and
     # ~/.deepagents/config.toml (profile < config.toml < --model-params).
-    case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
+    case "$(normalize_provider "${DEEPAGENTS_MODEL_PROVIDER:-vllm}")" in
         vllm)
             # deepagents' built-in openai profile may force use_responses_api=True,
             # but vLLM implements chat-completions (/v1/chat/completions), not
@@ -220,7 +231,10 @@ resolve_provider() {
         DEEPAGENTS_MODEL_PROVIDER="${requested}"
     fi
     case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
-        vllm) ;;
+        vllm|omlx)
+            # Keep the caller's alias for CLI/tests (`omlx`), but route defaults
+            # through the local OpenAI-compatible path below.
+            ;;
         openai) ;;
         *) unsupported_provider ;;
     esac
@@ -228,7 +242,7 @@ resolve_provider() {
 }
 
 configure_provider_defaults() {
-    case "${DEEPAGENTS_MODEL_PROVIDER:-vllm}" in
+    case "$(normalize_provider "${DEEPAGENTS_MODEL_PROVIDER:-vllm}")" in
         vllm) configure_vllm_defaults ;;
         openai) configure_openai_defaults ;;
         *) unsupported_provider ;;

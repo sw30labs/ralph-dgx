@@ -23,18 +23,19 @@ Commands:
   install                     Install (download, patch, install DeepAgents)
   update                      Run the Ralph-driven safe update workflow
   test <target>               Smoke-test a provider
-                              Targets: vllm, openai
+                              Targets: vllm, omlx, openai
   run                         Launch dcode
   doctor                      Check this machine (Python, GPU, vLLM)
 
 Options:
-  --provider <vllm|openai>
+  --provider <vllm|omlx|openai>
                               Model provider (default: from DEEPAGENTS_MODEL_PROVIDER or vllm)
+                              `omlx` is accepted as an alias for local vLLM
   --skip-install              (install) Skip installing patched packages
   -h, --help                  Show this help
 
 Environment:
-  DEEPAGENTS_MODEL_PROVIDER   vllm or openai (default: vllm)
+  DEEPAGENTS_MODEL_PROVIDER   vllm, omlx, or openai (default: vllm)
   DEEPAGENTS_ENV_FILE         Path to .env (default: <repo>/.env)
   PIP_PYTHON_BIN / RALPHDGX_PYTHON
                               Python used for install/run (prefers python3.12)
@@ -110,13 +111,15 @@ cmd_update() {
 cmd_test() {
     local target="${1:-}"
     if [[ -z "${target}" ]]; then
-        echo "Usage: ralphdgx test <vllm|openai>" >&2
+        echo "Usage: ralphdgx test <vllm|omlx|openai>" >&2
         exit 1
     fi
 
     resolve_python
     case "${target}" in
-        vllm)
+        vllm|omlx)
+            # `omlx` is the shared Ralph goal alias for the local OpenAI-compatible
+            # endpoint; on this DGX fork that endpoint is vLLM.
             export DEEPAGENTS_MODEL_PROVIDER_CLI="vllm"
             prepare_test
             "${PIP_PYTHON_BIN}" "${SCRIPT_DIR}/scripts/test-vllm.py"
@@ -127,7 +130,7 @@ cmd_test() {
             "${PIP_PYTHON_BIN}" "${SCRIPT_DIR}/scripts/test-openai.py"
             ;;
         *)
-            echo "Unknown test target: ${target}. Expected vllm or openai." >&2
+            echo "Unknown test target: ${target}. Expected vllm, omlx, or openai." >&2
             exit 1
             ;;
     esac

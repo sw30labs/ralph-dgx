@@ -2,12 +2,13 @@
 
 Upgrade this helper repository to the latest compatible DeepAgents, LangGraph,
 LangChain, and model-provider stack without breaking the known-good local
-vLLM/OpenAI workflow.
+OMLX/OpenAI workflow.
 
 ## Required Safety Rules
 
-- Keep the `vllm` and `openai` providers working (both routed through dcode's
-  `openai` provider / `langchain-openai`).
+- Keep the `omlx` and `openai` providers working (both routed through dcode's
+  `openai` provider / `langchain-openai`). On this DGX fork, `omlx` is accepted
+  as an alias for the local vLLM OpenAI-compatible endpoint (`vllm`).
 - Avoid pinning impossible dependency sets. If exact pins conflict with package
   metadata, prefer a fresh resolver output from the active environment.
 - Keep the project install script idempotent.
@@ -20,7 +21,7 @@ vLLM/OpenAI workflow.
    - `deepagents-acp`
    - `deepagents-code`
    - LangGraph and LangChain packages pulled by those packages
-   - model provider packages needed for the vLLM/OpenAI providers
+   - model provider packages needed for the OMLX/OpenAI providers
      (`langchain-openai`)
 2. Update the installer and patch scripts so the selected versions install
    cleanly in a fresh project `.venv` environment.
@@ -41,8 +42,8 @@ vLLM/OpenAI workflow.
    - `bash -n` on shell scripts
    - `python -m py_compile` on repo Python scripts
    - `dcode --version`
-   - `./ralphdgx test vllm`
-   - `./setup-and-run.sh --vllm --no-run`
+   - `./ralph test omlx`   # alias for local vLLM path on this fork
+   - `./setup-and-run.sh --omlx --no-run`
 6. Commit only after validation passes.
 
 ## Evidence Required
