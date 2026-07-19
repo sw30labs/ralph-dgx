@@ -40,8 +40,10 @@ def main() -> None:
     model_name = os.getenv("VLLM_MODEL", "Qwen/Qwen3-Coder-Next-FP8")
     api_key = os.getenv("VLLM_API_KEY", "test")
 
-    os.environ.setdefault("OPENAI_BASE_URL", base_url)
-    os.environ.setdefault("OPENAI_API_KEY", api_key)
+    # Force local vLLM routing even if the parent shell still has cloud
+    # OPENAI_BASE_URL / OPENAI_API_KEY exported from a previous session.
+    os.environ["OPENAI_BASE_URL"] = base_url
+    os.environ["OPENAI_API_KEY"] = api_key
 
     try:
         catalog = fetch_catalog(base_url, api_key)

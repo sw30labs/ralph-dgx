@@ -90,8 +90,12 @@ configure_vllm_defaults() {
     # Qwen3-Coder-Next-FP8 advertises 131072 max context on this host.
     export VLLM_MAX_INPUT_TOKENS="${VLLM_MAX_INPUT_TOKENS:-131072}"
 
-    export OPENAI_BASE_URL="${OPENAI_BASE_URL:-${VLLM_BASE_URL}}"
-    export OPENAI_API_KEY="${OPENAI_API_KEY:-${VLLM_API_KEY}}"
+    # Always pin the OpenAI-compatible client at the local vLLM endpoint.
+    # Do not preserve ambient OPENAI_BASE_URL/OPENAI_API_KEY (e.g. cloud xAI
+    # leftovers from a previous shell) — those would route the local model id
+    # to the wrong host and fail with "Model not found".
+    export OPENAI_BASE_URL="${VLLM_BASE_URL}"
+    export OPENAI_API_KEY="${VLLM_API_KEY}"
 
     # Local GPU models can pause between stream chunks longer than langchain's
     # 120s default (big prefills / tool loops). Raise the gap timer; set 0 to

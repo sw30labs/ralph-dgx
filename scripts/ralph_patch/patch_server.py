@@ -11,6 +11,8 @@ def run(
     server_graph: Path,
     server_manager: Path | None = None,
 ) -> None:
+    # server_manager is required for daz_ralph goal-mode kwargs to reach ServerConfig.
+    # Kept optional only so older call sites that omit it still patch config/graph.
     # _server_config.py: add goal_mode, goal_budget, goal_judge_model fields
     replace_once(
         server_config,
@@ -125,4 +127,50 @@ def run(
         )
     return agent
 ''',
+    )
+
+    if server_manager is None:
+        return
+
+    # client/launch/server_manager.py: accept goal kwargs from daz_ralph and
+    # forward them into ServerConfig.from_cli_args (which sets GOAL_* env for
+    # the server subprocess).
+    replace_once(
+        server_manager,
+        """    no_mcp: bool = False,
+    trust_project_mcp: bool | None = None,
+    interactive: bool = True,
+    host: str = "127.0.0.1",
+    port: int = _EPHEMERAL_PORT,
+) -> tuple[RemoteAgent, ServerProcess, MCPSessionManager | None]:
+""",
+        """    no_mcp: bool = False,
+    trust_project_mcp: bool | None = None,
+    goal_mode: bool = False,
+    goal_budget: int = 20,
+    goal_judge_model: str | None = None,
+    interactive: bool = True,
+    host: str = "127.0.0.1",
+    port: int = _EPHEMERAL_PORT,
+) -> tuple[RemoteAgent, ServerProcess, MCPSessionManager | None]:
+""",
+    )
+
+    replace_once(
+        server_manager,
+        """        no_mcp=no_mcp,
+        trust_project_mcp=trust_project_mcp,
+        interactive=interactive,
+    )
+    _apply_server_config(config)
+""",
+        """        no_mcp=no_mcp,
+        trust_project_mcp=trust_project_mcp,
+        goal_mode=goal_mode,
+        goal_budget=goal_budget,
+        goal_judge_model=goal_judge_model,
+        interactive=interactive,
+    )
+    _apply_server_config(config)
+""",
     )

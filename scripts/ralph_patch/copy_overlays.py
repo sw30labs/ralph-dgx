@@ -15,3 +15,7 @@ def run(overlay_dir: Path, code_project_dir: Path, code_pkg_dir: Path) -> None:
         overlay_dir / "deepagents_code" / "runtime_install_guard.py",
         code_pkg_dir / "runtime_install_guard.py",
     )
+    copy_file(
+        overlay_dir / "deepagents_code" / "model_param_filter.py",
+        code_pkg_dir / "model_param_filter.py",
+    )

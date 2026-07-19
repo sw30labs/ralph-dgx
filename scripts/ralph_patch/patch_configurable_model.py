@@ -14,6 +14,35 @@ def run(configurable_model_py: Path) -> None:
         "import json\nimport logging\nimport os\nimport time\n",
     )
 
+    # Import constructor/invoke param split (Ralph overlay).
+    replace_once(
+        configurable_model_py,
+        "from deepagents_code._cli_context import CLIContextSchema\n",
+        "from deepagents_code._cli_context import CLIContextSchema\n"
+        "from deepagents_code.model_param_filter import invoke_model_params\n",
+    )
+
+    # Strip constructor-only keys (e.g. use_responses_api) from model_settings
+    # so they are not bound into AsyncCompletions.create().
+    replace_once(
+        configurable_model_py,
+        """    # Param merge
+    model_params = ctx.model_params
+    if model_params:
+        overrides["model_settings"] = {**request.model_settings, **model_params}
+""",
+        """    # Param merge — only wire-level kwargs belong in model_settings.
+    # Constructor-only keys (e.g. use_responses_api for vLLM chat-completions)
+    # stay on the ChatOpenAI instance from create_model; re-binding them here
+    # leaks them into AsyncCompletions.create() and raises TypeError.
+    model_params = ctx.model_params
+    if model_params:
+        invoke_params = invoke_model_params(model_params)
+        if invoke_params:
+            overrides["model_settings"] = {**request.model_settings, **invoke_params}
+""",
+    )
+
     # Add helper functions before _apply_overrides. In 0.1.27 the
     # _ANTHROPIC_ONLY_SETTINGS constant is no longer immediately followed by
     # _apply_overrides, so anchor directly on the _apply_overrides def header.

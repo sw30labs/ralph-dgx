@@ -7,7 +7,9 @@ from pathlib import Path
 
 MODULES_TO_CHECK = (
     "deepagents_code.config",
+    "deepagents_code.configurable_model",
     "deepagents_code.model_config",
+    "deepagents_code.model_param_filter",
     "deepagents_code.server_config",
     "deepagents_code.server_manager",
     "daz_ralph.main",
@@ -28,6 +30,15 @@ VENDORED_MODULES = (
 PATCH_MARKERS = {
     "daz_ralph.main": ("run_textual_app", "goal_mode"),
     "deepagents_code.config": ("use_responses_api", "responses/v1"),
+    "deepagents_code.configurable_model": (
+        "invoke_model_params",
+        "Constructor-only keys",
+    ),
+    "deepagents_code.model_param_filter": (
+        "CONSTRUCTOR_ONLY_MODEL_PARAMS",
+        "use_responses_api",
+        "def invoke_model_params",
+    ),
     "deepagents_code.server_config": ("goal_mode: bool = False", "GOAL_MODE"),
     "deepagents_code.goal": ("def wrap_goal_graph(", "judge_goal", "nudge_goal"),
     "deepagents_code.server_graph": ("wrap_goal_graph", "goal_mode"),
