@@ -2,6 +2,6 @@
 #   pip install -r tests/requirements.txt
 #   python -m pytest                     # unit tests + live OMLX integration if reachable
 #   python -m pytest -m "not integration"   # unit tests only
-pytest>=7
-requests>=2
-tomli>=2 ; python_version < "3.11"
+pytest==9.2.0
+requests==2.34.2
+tomli==2.5.0 ; python_version < "3.11"
